@@ -1,5 +1,24 @@
 /*selectores*/
-/
-*{
-    background-color: #ffff00;
+/*color de fondo y color de letra*/
+* {
+    background-color: #000000;
+    box-sizing: border-box;
+}
+
+body {
+    color: #3e88dd;
+    background-color: #a212a7;
+}
+/*margenes*/
+
+* {
+    margin: 0;
+    padding: 20px;
+    border: 10px solid #0011ff;
+}
+/*tamaño y estilo de imagenes (por corregir)*/
+# image principal¨{
+    width: 200px;
+    border: 5px solid #000000;
+    pading: 10px;
 }
