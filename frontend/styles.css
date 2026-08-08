@@ -17,12 +17,13 @@ body {
     border: 10px solid #0011ff;
 }
 /*tamaño y estilo de imagenes (por corregir)*/
-# image principal¨{
+image{
     width: 200px;
-    border: 5px solid #000000;
+    border: 5px solid #cf0c0c;
     padding: 10px;
 }
 header {
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
 }
