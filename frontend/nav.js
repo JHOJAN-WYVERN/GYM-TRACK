@@ -3,6 +3,7 @@
    ========================================================= */
 
 const NAV_LINKS = [
+  { href: 'inicio.html', label: 'Inicio' },
   { href: 'dashboard.html', label: 'Dashboard' },
   { href: 'rutinas.html', label: 'Rutinas' },
   { href: 'elementos.html', label: 'Elementos' },

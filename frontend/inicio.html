@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — inicio</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-shell">
+	<aside class="sidebar" id="sidebar"></aside>
+
+	<main class="main">
+		<div class="page-header">
+			<div>
+				<h2 id="tituloInicio">Inicio</h2>
+				<p>Elige una sección para continuar.</p>
+			</div>
+			<a class="btn btn-primary" id="enlaceAcceso" href="index.html" hidden>Iniciar sesión</a>
+		</div>
+
+		<ul class="home-section-list" id="listaSecciones"></ul>
+	</main>
+</div>
+
+<script src="db.js"></script>
+<script src="nav.js"></script>
+<script>
+	const usuarioInicio = DB.usuarioActual();
+	if (usuarioInicio) {
+		renderSidebar('inicio.html');
+		document.getElementById('tituloInicio').textContent = `Hola, ${usuarioInicio.nombre.split(' ')[0]}`;
+	} else {
+		document.getElementById('enlaceAcceso').hidden = false;
+	}
+
+	document.getElementById('listaSecciones').innerHTML = NAV_LINKS.map(({ href, label }) => `
+		<li>
+			<span>${label}</span>
+			<a class="btn btn-primary btn-sm" href="${href}" aria-label="Ir a ${label}">Abrir sección</a>
+		</li>
+	`).join('');
+</script>
+</body>

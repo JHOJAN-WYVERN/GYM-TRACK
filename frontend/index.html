@@ -66,11 +66,11 @@
   </div>
 </div>
 
-<script src="js/db.js"></script>
+<script src="db.js"></script>
 <script>
-  // Si ya hay sesión activa, ir directo al dashboard
+  // Si ya hay sesión activa, ir a la pantalla de inicio
   if (DB.usuarioActual()) {
-    window.location.href = 'dashboard.html';
+    window.location.href = 'inicio.html';
   }
 
   const tabLogin = document.getElementById('tabLogin');
@@ -104,7 +104,7 @@
       errorBox.classList.add('show');
       return;
     }
-    window.location.href = 'dashboard.html';
+    window.location.href = 'inicio.html';
   });
 
   formRegister.addEventListener('submit', (e) => {
@@ -120,7 +120,7 @@
       errorBox.classList.add('show');
       return;
     }
-    window.location.href = 'dashboard.html';
+    window.location.href = 'inicio.html';
   });
 </script>
 </body>
