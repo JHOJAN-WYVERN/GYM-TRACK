@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Historial</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2>Historial de entrenamientos</h2>
+        <p>Todo lo que has entrenado, en orden cronológico.</p>
+      </div>
+    </div>
+
+    <div id="listaHistorial"></div>
+  </main>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  const usuario = requireAuth();
+
+  if (usuario) {
+    renderSidebar('historial.html');
+    dibujarHistorial();
+  }
+
+  function dibujarHistorial() {
+    const rutinas = DB.getRutinas(usuario.id_usuario)
+      .filter(r => r.completada)
+      .sort((a,b) => new Date(b.fecha_realizada) - new Date(a.fecha_realizada));
+
+    const cont = document.getElementById('listaHistorial');
+
+    if (!rutinas.length) {
+      cont.innerHTML = `<div class="card empty-state"><div class="mark-big"></div><p>Todavía no has completado ningún entrenamiento.</p></div>`;
+      return;
+    }
+
+    cont.innerHTML = rutinas.map(r => `
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div>
+            <h3 style="font-size:1.05rem;">${r.nombre}</h3>
+            <p style="font-size:0.85rem; color:var(--muted); margin-top:2px;">
+              📅 ${new Date(r.fecha_realizada).toLocaleDateString('es-ES', {weekday:'long', day:'numeric', month:'long'})}
+            </p>
+          </div>
+          <span class="badge badge-dominado">${r.duracion} min</span>
+        </div>
+
+        ${r.elementos_practicados.length ? `
+          <p style="font-size:0.85rem; margin-top:12px;"><strong>Elementos practicados:</strong> ${r.elementos_practicados.join(', ')}</p>
+        ` : ''}
+
+        ${r.ejercicios.length ? `
+          <p style="font-size:0.85rem; margin-top:8px; color:var(--muted);"><strong>Ejercicios:</strong> ${r.ejercicios.map(e => e.nombre).join(', ')}</p>
+        ` : ''}
+      </div>
+    `).join('');
+  }
+</script>
+</body>
+</html>

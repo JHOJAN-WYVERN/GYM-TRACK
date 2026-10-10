@@ -1,0 +1,110 @@
+ <!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Elementos</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2>Elementos de gimnasia</h2>
+        <p>Consulta el catálogo y actualiza tu estado en cada elemento.</p>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabsCategorias"></div>
+    <div class="grid grid-2" id="listaElementos"></div>
+  </main>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  const usuario = requireAuth();
+  let categoriaActiva = 'Todas';
+
+  if (usuario) {
+    renderSidebar('elementos.html');
+    dibujarTabs();
+    dibujarElementos();
+  }
+
+  function dibujarTabs() {
+    const elementos = DB.getElementos();
+    const categorias = ['Todas', ...new Set(elementos.map(e => e.categoria))];
+    document.getElementById('tabsCategorias').innerHTML = categorias.map(c => `
+      <button class="${c === categoriaActiva ? 'active' : ''}" onclick="cambiarCategoria('${c}')">${c}</button>
+    `).join('');
+  }
+
+  function cambiarCategoria(c) {
+    categoriaActiva = c;
+    dibujarTabs();
+    dibujarElementos();
+  }
+
+  function dibujarElementos() {
+    const elementos = DB.getElementos().filter(e => categoriaActiva === 'Todas' || e.categoria === categoriaActiva);
+    const cont = document.getElementById('listaElementos');
+
+    cont.innerHTML = elementos.map(e => {
+      const progreso = DB.getProgresoElemento(usuario.id_usuario, e.id_elemento);
+      const estado = progreso ? progreso.estado : 'Pendiente';
+      const porcentaje = progreso ? progreso.porcentaje : 0;
+      const badgeClase = estado === 'Dominado' ? 'badge-dominado' : estado === 'En progreso' ? 'badge-progreso' : 'badge-pendiente';
+
+      return `
+        <div class="card">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <h3 style="font-size:1.05rem;">${e.nombre}</h3>
+              <p style="font-size:0.8rem; color:var(--muted); margin-top:2px;">${e.categoria} · Nivel ${e.nivel}</p>
+            </div>
+            <span class="badge ${badgeClase}">${estado}</span>
+          </div>
+          <p style="font-size:0.9rem; margin-top:10px;">${e.descripcion}</p>
+          <p style="font-size:0.82rem; color:var(--muted); margin-top:6px;"><strong>Requisitos previos:</strong> ${e.requisitos}</p>
+
+          <div style="margin-top:12px;">
+            <div class="progress-track"><div class="progress-fill" style="width:${porcentaje}%"></div></div>
+            <p style="font-size:0.8rem; color:var(--muted); margin-top:4px;">${porcentaje}% de dominio</p>
+          </div>
+
+          <div class="field-row" style="margin-top:14px; grid-template-columns: 1fr 1fr;">
+            <select onchange="cambiarEstado('${e.id_elemento}', this.value, ${porcentaje})">
+              <option value="Pendiente" ${estado==='Pendiente'?'selected':''}>Pendiente</option>
+              <option value="En progreso" ${estado==='En progreso'?'selected':''}>En progreso</option>
+              <option value="Dominado" ${estado==='Dominado'?'selected':''}>Dominado</option>
+            </select>
+            <input type="range" min="0" max="100" value="${porcentaje}" oninput="cambiarPorcentaje('${e.id_elemento}', this.value, '${estado}')">
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function cambiarEstado(id_elemento, estado, porcentaje) {
+    const nuevoPorcentaje = estado === 'Dominado' ? 100 : (estado === 'Pendiente' ? 0 : (porcentaje || 50));
+    DB.actualizarProgreso(usuario.id_usuario, id_elemento, { estado, porcentaje: nuevoPorcentaje });
+    dibujarElementos();
+  }
+
+  function cambiarPorcentaje(id_elemento, porcentaje, estado) {
+    porcentaje = Number(porcentaje);
+    let nuevoEstado = estado;
+    if (porcentaje === 0) nuevoEstado = 'Pendiente';
+    else if (porcentaje === 100) nuevoEstado = 'Dominado';
+    else if (estado === 'Pendiente') nuevoEstado = 'En progreso';
+    DB.actualizarProgreso(usuario.id_usuario, id_elemento, { estado: nuevoEstado, porcentaje });
+    dibujarElementos();
+  }
+</script>
+</body>
+</html>

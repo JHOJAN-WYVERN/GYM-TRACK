@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Dashboard</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2 id="saludo">Hola 👋</h2>
+        <p>Este es el resumen de tu entrenamiento.</p>
+      </div>
+      <a href="rutinas.html" class="btn btn-primary">+ Nueva rutina</a>
+    </div>
+
+    <div class="grid grid-4" id="statsRow"></div>
+
+    <div class="grid grid-2" style="margin-top:24px;">
+      <div class="card">
+        <h3 style="margin-bottom:14px;">Meta actual</h3>
+        <div id="metaActual"></div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:14px;">Últimos entrenamientos</h3>
+        <div id="ultimosEntrenamientos"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  const usuario = requireAuth();
+  if (usuario) {
+    renderSidebar('dashboard.html');
+    document.getElementById('saludo').textContent = `Hola, ${usuario.nombre.split(' ')[0]} 👋`;
+
+    const stats = DB.getEstadisticas(usuario.id_usuario);
+    const rutinas = DB.getRutinas(usuario.id_usuario);
+
+    // Entrenamientos de esta semana
+    const inicioSemana = new Date();
+    inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+    inicioSemana.setHours(0,0,0,0);
+    const entrenamientosSemana = rutinas.filter(r => r.completada && new Date(r.fecha_realizada) >= inicioSemana);
+    const tiempoSemanaMin = entrenamientosSemana.reduce((a, r) => a + (r.duracion || 0), 0);
+
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat">
+        <div class="num">${entrenamientosSemana.length}</div>
+        <div class="label">Entrenamientos esta semana</div>
+      </div>
+      <div class="stat">
+        <div class="num">${Math.floor(tiempoSemanaMin/60)}h ${tiempoSemanaMin%60}min</div>
+        <div class="label">Tiempo entrenado (semana)</div>
+      </div>
+      <div class="stat">
+        <div class="num">${stats.elementosDominados}</div>
+        <div class="label">Elementos dominados</div>
+      </div>
+      <div class="stat">
+        <div class="num">${stats.racha} 🔥</div>
+        <div class="label">Racha de entrenamiento</div>
+      </div>
+    `;
+
+    // Meta actual: la de progreso más reciente sin completar (o la más nueva)
+    const metas = DB.getMetas(usuario.id_usuario);
+    const metaActualEl = document.getElementById('metaActual');
+    const metaActiva = metas.filter(m => m.progreso < 100).sort((a,b) => new Date(a.fecha) - new Date(b.fecha))[0];
+
+    if (metaActiva) {
+      metaActualEl.innerHTML = `
+        <p style="font-weight:600; margin-bottom:4px;">🎯 ${metaActiva.descripcion}</p>
+        <p style="color:var(--muted); font-size:0.9rem; margin-bottom:12px;">📅 Fecha objetivo: ${new Date(metaActiva.fecha).toLocaleDateString('es-ES', {day:'numeric', month:'long'})}</p>
+        <div class="progress-track"><div class="progress-fill" style="width:${metaActiva.progreso}%"></div></div>
+        <p style="font-size:0.85rem; color:var(--muted); margin-top:6px;">${metaActiva.progreso}% completado</p>
+      `;
+    } else {
+      metaActualEl.innerHTML = `<div class="empty-state"><div class="mark-big"></div><p>Aún no tienes metas activas.</p><a href="metas.html" class="btn btn-sm btn-ghost" style="margin-top:10px;">Crear una meta</a></div>`;
+    }
+
+    // Últimos entrenamientos
+    const ultimos = rutinas.filter(r => r.completada).sort((a,b) => new Date(b.fecha_realizada) - new Date(a.fecha_realizada)).slice(0, 4);
+    const ultimosEl = document.getElementById('ultimosEntrenamientos');
+
+    if (ultimos.length) {
+      ultimosEl.innerHTML = ultimos.map(r => `
+        <div class="list-item">
+          <div>
+            <div style="font-weight:600;">${r.nombre}</div>
+            <div style="font-size:0.82rem; color:var(--muted);">${new Date(r.fecha_realizada).toLocaleDateString('es-ES', {day:'numeric', month:'short'})}</div>
+          </div>
+          <div style="font-size:0.85rem; color:var(--muted);">${r.duracion} min</div>
+        </div>
+      `).join('');
+    } else {
+      ultimosEl.innerHTML = `<div class="empty-state"><div class="mark-big"></div><p>Todavía no has completado entrenamientos.</p></div>`;
+    }
+  }
+</script>
+</body>
+</html>

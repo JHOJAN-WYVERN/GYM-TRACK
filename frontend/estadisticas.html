@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Estadísticas</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .bar-chart { display: flex; align-items: flex-end; gap: 14px; height: 180px; padding-top: 10px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .bar { width: 100%; max-width: 42px; background: var(--coral); border-radius: 3px 3px 0 0; border: 2px solid var(--ink); border-bottom: none; transition: height 0.25s; }
+  .bar-col .bar-label { font-size: 0.78rem; color: var(--muted); margin-top: 8px; text-transform: capitalize; }
+  .bar-col .bar-value { font-size: 0.78rem; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2>Estadísticas 📊</h2>
+        <p>Tu progreso general de entrenamiento.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-4" id="statsRow"></div>
+
+    <div class="card" style="margin-top:20px;">
+      <h3 style="margin-bottom:4px;">Progreso mensual</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-bottom:6px;">Entrenamientos completados por mes (últimos 6 meses)</p>
+      <div class="bar-chart" id="barChart"></div>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+      <h3 style="margin-bottom:14px;">Elementos por categoría</h3>
+      <div id="porCategoria"></div>
+    </div>
+  </main>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  const usuario = requireAuth();
+
+  if (usuario) {
+    renderSidebar('estadisticas.html');
+
+    const stats = DB.getEstadisticas(usuario.id_usuario);
+
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat">
+        <div class="num">${stats.entrenamientosRealizados}</div>
+        <div class="label">Entrenamientos realizados</div>
+      </div>
+      <div class="stat">
+        <div class="num">${Math.floor(stats.tiempoTotalMin/60)}h ${stats.tiempoTotalMin%60}min</div>
+        <div class="label">Tiempo total entrenado</div>
+      </div>
+      <div class="stat">
+        <div class="num">${stats.elementosDominados}</div>
+        <div class="label">Elementos dominados</div>
+      </div>
+      <div class="stat">
+        <div class="num">${stats.racha} 🔥</div>
+        <div class="label">Racha actual (días)</div>
+      </div>
+    `;
+
+    const maxMes = Math.max(1, ...stats.meses.map(m => m.total));
+    document.getElementById('barChart').innerHTML = stats.meses.map(m => `
+      <div class="bar-col">
+        <span class="bar-value">${m.total}</span>
+        <div class="bar" style="height:${(m.total / maxMes) * 100}%;"></div>
+        <span class="bar-label">${m.etiqueta}</span>
+      </div>
+    `).join('');
+
+    // Elementos por categoría con estado
+    const elementos = DB.getElementos();
+    const progreso = DB.getProgreso(usuario.id_usuario);
+    const categorias = [...new Set(elementos.map(e => e.categoria))];
+
+    document.getElementById('porCategoria').innerHTML = categorias.map(cat => {
+      const deCategoria = elementos.filter(e => e.categoria === cat);
+      const dominados = deCategoria.filter(e => {
+        const p = progreso.find(pr => pr.id_elemento === e.id_elemento);
+        return p && p.estado === 'Dominado';
+      }).length;
+      const porcentaje = Math.round((dominados / deCategoria.length) * 100);
+
+      return `
+        <div class="list-item">
+          <div style="flex:1;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-weight:600;">${cat}</span>
+              <span style="color:var(--muted); font-size:0.85rem;">${dominados}/${deCategoria.length} dominados</span>
+            </div>
+            <div class="progress-track"><div class="progress-fill" style="width:${porcentaje}%"></div></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Metas</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2>Metas 🏆</h2>
+        <p>Define objetivos y da seguimiento a tu avance.</p>
+      </div>
+      <button class="btn btn-primary" id="btnNuevaMeta">+ Nueva meta</button>
+    </div>
+
+    <div class="card" id="formNuevaMeta" style="display:none; margin-bottom:20px;">
+      <h3 style="margin-bottom:14px;">Nueva meta</h3>
+      <div class="field">
+        <label for="descMeta">Descripción</label>
+        <input type="text" id="descMeta" placeholder="Ej: Aprender un nuevo elemento">
+      </div>
+      <div class="field">
+        <label for="fechaMeta">Fecha objetivo</label>
+        <input type="date" id="fechaMeta">
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-primary" id="btnGuardarMeta">Guardar meta</button>
+        <button class="btn btn-ghost" id="btnCancelarMeta">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="listaMetas"></div>
+  </main>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  const usuario = requireAuth();
+
+  if (usuario) {
+    renderSidebar('metas.html');
+    dibujarMetas();
+
+    document.getElementById('btnNuevaMeta').addEventListener('click', () => {
+      document.getElementById('formNuevaMeta').style.display = 'block';
+    });
+
+    document.getElementById('btnCancelarMeta').addEventListener('click', cerrarFormulario);
+
+    document.getElementById('btnGuardarMeta').addEventListener('click', () => {
+      const descripcion = document.getElementById('descMeta').value.trim();
+      const fecha = document.getElementById('fechaMeta').value;
+      if (!descripcion || !fecha) { alert('Completa la descripción y la fecha objetivo.'); return; }
+      DB.crearMeta(usuario.id_usuario, { descripcion, fecha });
+      cerrarFormulario();
+      dibujarMetas();
+    });
+  }
+
+  function cerrarFormulario() {
+    document.getElementById('formNuevaMeta').style.display = 'none';
+    document.getElementById('descMeta').value = '';
+    document.getElementById('fechaMeta').value = '';
+  }
+
+  function dibujarMetas() {
+    const metas = DB.getMetas(usuario.id_usuario).sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+    const cont = document.getElementById('listaMetas');
+
+    if (!metas.length) {
+      cont.innerHTML = `<div class="card empty-state"><div class="mark-big"></div><p>Aún no tienes metas. Crea la primera.</p></div>`;
+      return;
+    }
+
+    cont.innerHTML = metas.map(m => `
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+          <div>
+            <h3 style="font-size:1.05rem;">🎯 ${m.descripcion}</h3>
+            <p style="font-size:0.85rem; color:var(--muted); margin-top:2px;">📅 Fecha objetivo: ${new Date(m.fecha).toLocaleDateString('es-ES', {day:'numeric', month:'long', year:'numeric'})}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm btn-danger" onclick="borrarMeta('${m.id_meta}')">Eliminar</button>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div class="progress-track"><div class="progress-fill" style="width:${m.progreso}%"></div></div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <span style="font-size:0.85rem; color:var(--muted);">${m.progreso}% completado</span>
+            <input type="range" min="0" max="100" value="${m.progreso}" style="width:140px;" oninput="cambiarProgreso('${m.id_meta}', this.value)">
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function cambiarProgreso(id_meta, valor) {
+    DB.actualizarMeta(id_meta, valor);
+    dibujarMetas();
+  }
+
+  function borrarMeta(id_meta) {
+    if (!confirm('¿Eliminar esta meta?')) return;
+    DB.eliminarMeta(id_meta);
+    dibujarMetas();
+  }
+</script>
+</body>
+</html>

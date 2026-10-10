@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymTrack — Rutinas</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <h2>Rutinas</h2>
+        <p>Crea tus rutinas de entrenamiento y agrégales ejercicios.</p>
+      </div>
+      <button class="btn btn-primary" id="btnNueva">+ Nueva rutina</button>
+    </div>
+
+    <!-- Formulario de nueva rutina -->
+    <div class="card" id="formNuevaRutina" style="display:none; margin-bottom:20px;">
+      <h3 style="margin-bottom:14px;">Nueva rutina</h3>
+      <div class="field">
+        <label for="nombreRutina">Nombre de la rutina</label>
+        <input type="text" id="nombreRutina" placeholder="Ej: Rutina de suelo — lunes">
+      </div>
+
+      <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:6px;">Ejercicios</label>
+      <div id="listaEjerciciosForm"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="btnAgregarEjercicio" style="margin:10px 0 18px;">+ Agregar ejercicio</button>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-primary" id="btnGuardarRutina">Guardar rutina</button>
+        <button class="btn btn-ghost" id="btnCancelarRutina">Cancelar</button>
+      </div>
+    </div>
+
+    <div id="listaRutinas"></div>
+  </main>
+</div>
+
+<!-- Modal para completar rutina -->
+<div id="modalCompletar" style="display:none; position:fixed; inset:0; background:rgba(30,27,46,0.55); align-items:center; justify-content:center; z-index:10;">
+  <div class="card" style="max-width:380px; width:90%;">
+    <h3 style="margin-bottom:14px;">Registrar entrenamiento</h3>
+    <div class="field">
+      <label for="duracionInput">¿Cuánto tiempo entrenaste? (minutos)</label>
+      <input type="number" id="duracionInput" min="1" placeholder="45">
+    </div>
+    <div class="field">
+      <label for="elementosInput">Elementos practicados (separados por coma)</label>
+      <input type="text" id="elementosInput" placeholder="Rueda lateral, Split">
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-primary" id="btnConfirmarCompletar">Guardar</button>
+      <button class="btn btn-ghost" id="btnCancelarCompletar">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  const usuario = requireAuth();
+  let ejerciciosTemp = [];
+  let rutinaACompletar = null;
+
+  if (usuario) {
+    renderSidebar('rutinas.html');
+    dibujarEjerciciosForm();
+    dibujarRutinas();
+
+    document.getElementById('btnNueva').addEventListener('click', () => {
+      document.getElementById('formNuevaRutina').style.display = 'block';
+    });
+
+    document.getElementById('btnCancelarRutina').addEventListener('click', cerrarFormulario);
+
+    document.getElementById('btnAgregarEjercicio').addEventListener('click', () => {
+      ejerciciosTemp.push({ nombre: '', series: '', repeticiones: '' });
+      dibujarEjerciciosForm();
+    });
+
+    document.getElementById('btnGuardarRutina').addEventListener('click', () => {
+      const nombre = document.getElementById('nombreRutina').value.trim();
+      if (!nombre) { alert('Ponle un nombre a la rutina.'); return; }
+      const ejercicios = ejerciciosTemp.filter(e => e.nombre.trim());
+      DB.crearRutina(usuario.id_usuario, { nombre, ejercicios });
+      cerrarFormulario();
+      dibujarRutinas();
+    });
+
+    document.getElementById('btnCancelarCompletar').addEventListener('click', () => {
+      document.getElementById('modalCompletar').style.display = 'none';
+      rutinaACompletar = null;
+    });
+
+    document.getElementById('btnConfirmarCompletar').addEventListener('click', () => {
+      const duracion = document.getElementById('duracionInput').value;
+      const elementosRaw = document.getElementById('elementosInput').value;
+      if (!duracion) { alert('Indica cuánto tiempo entrenaste.'); return; }
+      const elementos_practicados = elementosRaw.split(',').map(s => s.trim()).filter(Boolean);
+      DB.completarRutina(rutinaACompletar, { duracion, elementos_practicados });
+      document.getElementById('modalCompletar').style.display = 'none';
+      document.getElementById('duracionInput').value = '';
+      document.getElementById('elementosInput').value = '';
+      rutinaACompletar = null;
+      dibujarRutinas();
+    });
+  }
+
+  function cerrarFormulario() {
+    document.getElementById('formNuevaRutina').style.display = 'none';
+    document.getElementById('nombreRutina').value = '';
+    ejerciciosTemp = [];
+    dibujarEjerciciosForm();
+  }
+
+  function dibujarEjerciciosForm() {
+    const cont = document.getElementById('listaEjerciciosForm');
+    if (!ejerciciosTemp.length) {
+      cont.innerHTML = `<p style="color:var(--muted); font-size:0.88rem;">Aún no agregas ejercicios.</p>`;
+      return;
+    }
+    cont.innerHTML = ejerciciosTemp.map((ej, i) => `
+      <div class="field-row" style="margin-bottom:10px; grid-template-columns: 2fr 1fr 1fr auto;">
+        <input type="text" placeholder="Ejercicio" value="${ej.nombre}" onchange="actualizarEjercicio(${i}, 'nombre', this.value)">
+        <input type="number" placeholder="Series" value="${ej.series}" onchange="actualizarEjercicio(${i}, 'series', this.value)">
+        <input type="number" placeholder="Repeticiones" value="${ej.repeticiones}" onchange="actualizarEjercicio(${i}, 'repeticiones', this.value)">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="quitarEjercicio(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function actualizarEjercicio(i, campo, valor) { ejerciciosTemp[i][campo] = valor; }
+  function quitarEjercicio(i) { ejerciciosTemp.splice(i, 1); dibujarEjerciciosForm(); }
+
+  function dibujarRutinas() {
+    const rutinas = DB.getRutinas(usuario.id_usuario).sort((a,b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+    const cont = document.getElementById('listaRutinas');
+
+    if (!rutinas.length) {
+      cont.innerHTML = `<div class="card empty-state"><div class="mark-big"></div><p>No tienes rutinas todavía. Crea la primera.</p></div>`;
+      return;
+    }
+
+    cont.innerHTML = rutinas.map(r => `
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+          <div>
+            <h3 style="font-size:1.1rem;">${r.nombre}</h3>
+            <p style="font-size:0.85rem; color:var(--muted); margin-top:2px;">
+              ${r.completada ? `Completada el ${new Date(r.fecha_realizada).toLocaleDateString('es-ES')} · ${r.duracion} min` : 'Pendiente por realizar'}
+            </p>
+          </div>
+          <span class="badge ${r.completada ? 'badge-dominado' : 'badge-progreso'}">${r.completada ? 'Completada' : 'Pendiente'}</span>
+        </div>
+
+        ${r.ejercicios.length ? `
+          <div style="margin-top:12px;">
+            ${r.ejercicios.map(e => `
+              <div class="list-item">
+                <span>${e.nombre}</span>
+                <span style="color:var(--muted); font-size:0.85rem;">${e.series || '-'} series × ${e.repeticiones || '-'} reps</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<p style="color:var(--muted); font-size:0.85rem; margin-top:10px;">Sin ejercicios agregados.</p>'}
+
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          ${!r.completada ? `<button class="btn btn-primary btn-sm" onclick="abrirCompletar('${r.id_rutina}')">Marcar como completada</button>` : ''}
+          <button class="btn btn-ghost btn-sm btn-danger" onclick="borrarRutina('${r.id_rutina}')">Eliminar</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function abrirCompletar(id_rutina) {
+    rutinaACompletar = id_rutina;
+    document.getElementById('modalCompletar').style.display = 'flex';
+  }
+
+  function borrarRutina(id_rutina) {
+    if (!confirm('¿Eliminar esta rutina?')) return;
+    DB.eliminarRutina(id_rutina);
+    dibujarRutinas();
+  }
+</script>
+</body>
+</html>
