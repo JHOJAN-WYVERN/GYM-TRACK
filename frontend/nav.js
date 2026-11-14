@@ -52,7 +52,16 @@ function renderSidebar(activeHref) {
   sidebarEl.innerHTML = sidebarHtml;
 
   document.getElementById('btnLogout').addEventListener('click', () => {
-    DB.cerrarSesion();
-    window.location.href = 'index.html';
+    DB.cerrarSesion().then((resultado) => {
+      if (!resultado.ok) alert(resultado.error);
+      window.location.href = 'index.html';
+    });
   });
 }
+
+DB.verificarSesion().then((resultado) => {
+  if (!resultado.ok && resultado.error === 'Inicia sesión para continuar.') {
+    const paginaActual = window.location.pathname.split('/').pop();
+    if (paginaActual !== 'index.html') window.location.href = 'index.html';
+  }
+});

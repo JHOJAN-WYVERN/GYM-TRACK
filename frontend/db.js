@@ -1,13 +1,12 @@
 /* =========================================================
    GYMTRACK — Capa de datos (db.js)
-   Simula las tablas del modelo relacional usando localStorage.
-   Cada "tabla" es un arreglo guardado bajo una llave propia.
+   Las cuentas se almacenan en el servidor; los datos de entrenamiento
+   continúan guardándose localmente en este navegador.
    ========================================================= */
 
 const DB = {
   KEYS: {
-    USUARIOS: 'gt_usuarios',
-    SESION: 'gt_sesion',
+    USUARIO_ACTUAL: 'gt_usuario_actual',
     RUTINAS: 'gt_rutinas',
     ELEMENTOS: 'gt_elementos',
     PROGRESO: 'gt_progreso',
@@ -28,42 +27,88 @@ const DB = {
     return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   },
 
-  /* ---------------- USUARIO ---------------- */
+  /* ---------------- CUENTA ---------------- */
 
-  getUsuarios() { return this._get(this.KEYS.USUARIOS, []); },
+  _usuarioEnCache() {
+    const raw = sessionStorage.getItem(this.KEYS.USUARIO_ACTUAL);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  },
 
-  registrarUsuario({ nombre, correo, contrasena }) {
-    const usuarios = this.getUsuarios();
-    if (usuarios.some(u => u.correo.toLowerCase() === correo.toLowerCase())) {
-      return { ok: false, error: 'Ya existe una cuenta con ese correo.' };
+  _guardarUsuario(usuario) {
+    sessionStorage.setItem(this.KEYS.USUARIO_ACTUAL, JSON.stringify(usuario));
+    return usuario;
+  },
+
+  _borrarUsuario() { sessionStorage.removeItem(this.KEYS.USUARIO_ACTUAL); },
+
+  usuarioActual() { return this._usuarioEnCache(); },
+
+  async _solicitar(url, { method = 'GET', body } = {}) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method,
+        credentials: 'same-origin',
+        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+    } catch {
+      return { ok: false, error: 'No se pudo conectar con el servidor. Comprueba que GymTrack esté en ejecución.' };
     }
-    const usuario = { id_usuario: this._uid('u'), nombre, correo, contrasena };
-    usuarios.push(usuario);
-    this._set(this.KEYS.USUARIOS, usuarios);
-    this.iniciarSesion(correo, contrasena);
-    return { ok: true, usuario };
+
+    let resultado;
+    try {
+      resultado = await response.json();
+    } catch {
+      return { ok: false, error: 'El servidor devolvió una respuesta no válida.' };
+    }
+    if (!response.ok) return { ok: false, error: resultado.error || 'No se pudo completar la solicitud.' };
+    return { ok: true, ...resultado };
   },
 
-  iniciarSesion(correo, contrasena) {
-    const usuario = this.getUsuarios().find(
-      u => u.correo.toLowerCase() === correo.toLowerCase() && u.contrasena === contrasena
-    );
-    if (!usuario) return { ok: false, error: 'Correo o contraseña incorrectos.' };
-    this._set(this.KEYS.SESION, { id_usuario: usuario.id_usuario });
-    return { ok: true, usuario };
+  async registrarUsuario({ nombre, correo, contrasena }) {
+    const resultado = await this._solicitar('/api/register', {
+      method: 'POST',
+      body: { nombre, correo, contrasena },
+    });
+    if (resultado.ok) this._guardarUsuario(resultado.usuario);
+    return resultado;
   },
 
-  cerrarSesion() { localStorage.removeItem(this.KEYS.SESION); },
-
-  usuarioActual() {
-    const sesion = this._get(this.KEYS.SESION, null);
-    if (!sesion) return null;
-    return this.getUsuarios().find(u => u.id_usuario === sesion.id_usuario) || null;
+  async iniciarSesion(correo, contrasena) {
+    const resultado = await this._solicitar('/api/login', {
+      method: 'POST',
+      body: { correo, contrasena },
+    });
+    if (resultado.ok) this._guardarUsuario(resultado.usuario);
+    return resultado;
   },
 
-  actualizarPerfil(id_usuario, cambios) {
-    const usuarios = this.getUsuarios().map(u => u.id_usuario === id_usuario ? { ...u, ...cambios } : u);
-    this._set(this.KEYS.USUARIOS, usuarios);
+  async verificarSesion() {
+    const resultado = await this._solicitar('/api/me');
+    if (resultado.ok) {
+      this._guardarUsuario(resultado.usuario);
+    } else if (resultado.error === 'Inicia sesión para continuar.') {
+      this._borrarUsuario();
+    }
+    return resultado;
+  },
+
+  async cerrarSesion() {
+    this._borrarUsuario();
+    return this._solicitar('/api/logout', { method: 'POST' });
+  },
+
+  async actualizarPerfil(id_usuario, cambios) {
+    const resultado = await this._solicitar('/api/me', {
+      method: 'PATCH',
+      body: cambios,
+    });
+    if (resultado.ok && resultado.usuario.id_usuario === id_usuario) {
+      this._guardarUsuario(resultado.usuario);
+    }
+    return resultado;
   },
 
   /* ---------------- RUTINA (+ RUTINA_EJERCICIO embebido) ---------------- */

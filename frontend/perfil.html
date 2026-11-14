@@ -50,10 +50,12 @@
     document.getElementById('nombrePerfil').value = usuario.nombre;
     document.getElementById('correoPerfil').value = usuario.correo;
 
-    document.getElementById('btnGuardarPerfil').addEventListener('click', () => {
+    document.getElementById('btnGuardarPerfil').addEventListener('click', async () => {
       const nombre = document.getElementById('nombrePerfil').value.trim();
       if (!nombre) { alert('El nombre no puede quedar vacío.'); return; }
-      DB.actualizarPerfil(usuario.id_usuario, { nombre });
+      const resultado = await DB.actualizarPerfil(usuario.id_usuario, { nombre });
+      if (!resultado.ok) { alert(resultado.error); return; }
+      usuario.nombre = resultado.usuario.nombre;
       const conf = document.getElementById('confirmacion');
       conf.style.display = 'block';
       setTimeout(() => conf.style.display = 'none', 2000);

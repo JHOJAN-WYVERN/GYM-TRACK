@@ -57,7 +57,7 @@
         </div>
         <div class="field">
           <label for="regContrasena">Contraseña</label>
-          <input type="password" id="regContrasena" required minlength="4" placeholder="Mínimo 4 caracteres">
+          <input type="password" id="regContrasena" required minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres">
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Crear cuenta</button>
       </form>
@@ -71,6 +71,10 @@
   // Si ya hay sesión activa, ir a la pantalla de inicio
   if (DB.usuarioActual()) {
     window.location.href = 'inicio.html';
+  } else {
+    DB.verificarSesion().then((resultado) => {
+      if (resultado.ok) window.location.href = 'inicio.html';
+    });
   }
 
   const tabLogin = document.getElementById('tabLogin');
@@ -92,13 +96,13 @@
     formLogin.style.display = 'none';
   });
 
-  formLogin.addEventListener('submit', (e) => {
+  formLogin.addEventListener('submit', async (e) => {
     e.preventDefault();
     const correo = document.getElementById('loginCorreo').value.trim();
     const contrasena = document.getElementById('loginContrasena').value;
     const errorBox = document.getElementById('errorLogin');
 
-    const resultado = DB.iniciarSesion(correo, contrasena);
+    const resultado = await DB.iniciarSesion(correo, contrasena);
     if (!resultado.ok) {
       errorBox.textContent = resultado.error;
       errorBox.classList.add('show');
@@ -107,14 +111,14 @@
     window.location.href = 'inicio.html';
   });
 
-  formRegister.addEventListener('submit', (e) => {
+  formRegister.addEventListener('submit', async (e) => {
     e.preventDefault();
     const nombre = document.getElementById('regNombre').value.trim();
     const correo = document.getElementById('regCorreo').value.trim();
     const contrasena = document.getElementById('regContrasena').value;
     const errorBox = document.getElementById('errorRegister');
 
-    const resultado = DB.registrarUsuario({ nombre, correo, contrasena });
+    const resultado = await DB.registrarUsuario({ nombre, correo, contrasena });
     if (!resultado.ok) {
       errorBox.textContent = resultado.error;
       errorBox.classList.add('show');
